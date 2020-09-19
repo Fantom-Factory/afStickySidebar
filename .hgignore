@@ -1,0 +1,8 @@
+syntax: glob
+.git
+.skyspark
+bin
+build
+sky
+
+syntax: regexp
