@@ -1,14 +1,18 @@
 using dom::Elem
 using graphics::Rect
 
-** ResizeObserver invokes a callback when an dimensions of an element changes.
+** ResizeObserver invokes a callback when the dimensions of an element changes.
 ** 
-** See [Resize Observer API]`https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API`
+** 'ResizeObserver' is a wrapper around the official [Resize Observer API]`https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API`.
+** See the [W3C Working Draft]`https://drafts.csswg.org/resize-observer-1/`.
+** 
+** 'ResizeObserver' is not supported by IE or earlier versions of Firefox. See [Can I Use]`https://caniuse.com/mdn-api_resizeobserver`. In these instances, `ResizeSensor` may be used as a ponyfill.
 @Js class ResizeObserver {
 
 	private Func? callback
 
 	** Constructor.
+	** Throws Err if ResizeObserver is not available.
 	new make(|ResizeEntry[]| callback) {
 		this.callback = callback
 	}
