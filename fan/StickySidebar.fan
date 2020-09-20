@@ -370,7 +370,7 @@ using graphics::Point
 			case "CONTAINER-BOTTOM":
 			case "VIEWPORT-UNBOTTOM":
 				style["inner"].setAll([
-					"transform" : "translate3d(0, ${dims.translateY.toInt}px, 0)" 
+					"transform" : "translateY(${dims.translateY}px)" 
 				])
 		}
 
@@ -427,7 +427,7 @@ using graphics::Point
 
 		// If the browser is scrolling not in the same direction.
 		if (dims.viewportTop == furthest)
-			this.direction = "down" == this.direction ?  "up" : "down"
+			this.direction = "down" == this.direction ? "up" : "down"
 	}
 
 	** Destroy sticky sidebar plugin.
