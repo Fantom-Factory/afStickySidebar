@@ -189,7 +189,10 @@ using graphics::Point
 	** Determine whether the sidebar is bigger than viewport.
 	private Bool _isSidebarFitsViewport() {
 		dims	:= this.dimensions
-		offset	:= this.direction == "down" ? dims.lastBottomSpacing : dims.lastTopSpacing
+		// Slimer - this line was wrong (compared against a non-existent variable)
+		// but causes the scrolling to jump when fixed - so just keep lastTopSpacing
+//		offset	:= this.direction == "down" ? dims.lastBottomSpacing : dims.lastTopSpacing
+		offset	:= dims.lastTopSpacing
 		return this.dimensions.sidebarHeight + offset < this.dimensions.viewportHeight
 	}
 
