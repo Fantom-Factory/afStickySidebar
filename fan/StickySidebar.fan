@@ -41,17 +41,18 @@ using graphics::Point
 		"containerSelector"		: null,					// Elem|String
 	].toImmutable
 	
-	private Str:Obj?	options
-	private Elem		sidebar
-	private Elem		sidebarInner
-	private Elem		container
-	private Str			affixedType
-	private Str			direction
-	private Bool		_reStyle
-	private Bool		_breakpoint
+	private Str:Obj?		options
+	private Elem			sidebar
+	private Elem			sidebarInner
+	private Elem			container
+	private Str				affixedType
+	private Str				direction
+	private Bool			_reStyle
+	private Bool			_breakpoint
 	private StickySidebarDims	dimensions
-	private Str			scrollDirection	:= ""
-	private Bool		_running
+	private Bool			_running
+	private |Obj?|			_eventFn
+	private ResizeSensor[]?	_sensors
 	
 	new make(Obj sidebar, [Str:Obj?]? opts := null)  {
 		this.options		= defOpts.rw.setAll(opts ?: Str:Obj?[:])
@@ -69,10 +70,11 @@ using graphics::Point
 		
 		// Current Affix Type of sidebar element.
 		this.affixedType	= "STATIC"
+		this.dimensions		= StickySidebarDims()
 		this.direction		= "down"
+		this._eventFn		= |Obj? obj| { this._handleEvent(obj as Event) }
 		this._reStyle		= false
 		this._breakpoint	= false
-		this.dimensions		= StickySidebarDims()
 	}
 	
 	This init() {
@@ -83,7 +85,7 @@ using graphics::Point
 		this._calcDimensions()
 		
 		// Affix sidebar in proper position.
-		this.stickyPosition(false)
+		this.updateSticky(false)
 		
 		// Bind all events.
 		this._bindEvents()
@@ -106,17 +108,17 @@ using graphics::Point
 	}
 	
 	** Bind all events of sticky sidebar plugin.
-	private Void _bindEvents() {
-		Win.cur.onEvent("resize", false) { this.updateSticky(it) }
-		Win.cur.onEvent("scroll", false) { this.updateSticky(it) }
+	private Void _bindEvents() {		
+		Win.cur.onEvent("resize", false, _eventFn)
+		Win.cur.onEvent("scroll", false, _eventFn)
 		
-		try	ResizeObserver() |entries| {
-				this.updateSticky(null)
-			}.observe(this.container).observe(this.sidebarInner)
+		try	ResizeObserver(_eventFn).observe(this.container).observe(this.sidebarInner)
 		catch {
-			typeof.pod.log.warn("ResizeObserver not supported")
-			resizeSensor(this.container) 	{ this.updateSticky(null) }
-			resizeSensor(this.sidebarInner)	{ this.updateSticky(null) }	
+			typeof.pod.log.warn("ResizeObserver not supported - ponyfilling with ResizeSensor")
+			this._sensors = ResizeSensor[
+				ResizeSensor(this.container		).onResize(_eventFn),
+				ResizeSensor(this.sidebarInner	).onResize(_eventFn),
+			]
 		}
 	}
 
@@ -153,7 +155,8 @@ using graphics::Point
 	
 		dims.sidebarLeft		= offsetPoint(this.sidebar).x
 	
-//		// https://github.com/abouolia/sticky-sidebar/pull/88/commits/5664703acdf09dbcac8e22499c134471ed3224cc
+		// #88 Fix zoom scroll issue
+		// https://github.com/abouolia/sticky-sidebar/pull/88/commits/5664703acdf09dbcac8e22499c134471ed3224cc
 //		if (Win.cur.doc.width > windowInnerSize.w)
 //            dims.sidebarLeft	= dims.sidebarLeft + document.body.scrollLeft
 		
@@ -186,13 +189,13 @@ using graphics::Point
 	** Determine whether the sidebar is bigger than viewport.
 	private Bool _isSidebarFitsViewport() {
 		dims	:= this.dimensions
-		offset	:= this.scrollDirection == "down" ? dims.lastBottomSpacing : dims.lastTopSpacing
+		offset	:= this.direction == "down" ? dims.lastBottomSpacing : dims.lastTopSpacing
 		return this.dimensions.sidebarHeight + offset < this.dimensions.viewportHeight
 	}
 
 	** Cause the sidebar to be sticky according to affix type by adding inline
-	** style, adding helper class and trigger events.
-	Void stickyPosition(Bool force := false) {
+	** style, adding helper classes, and trigger events.
+	Void updateSticky(Bool force := false) {
 		if (this._breakpoint) return
 
 		force			= this._reStyle || force
@@ -213,13 +216,15 @@ using graphics::Point
 			outer := (Str:Obj?) style["outer"]
 			outer.each |obj, key| {
 				val := obj is Num ? "${obj}px" : obj.toStr
-				this.sidebar.style.trap(key, [val])
+				// we can use 'set' because the keys are NOT camelCased
+				this.sidebar.style.set(key, val)
 			}
 
 			inner := (Str:Obj?) style["inner"]
 			inner.each |obj, key| {
 				val := obj is Num ? "${obj}px" : obj.toStr
-				this.sidebarInner.style.trap(key, [val])
+				// we can use 'set' because the keys are NOT camelCased
+				this.sidebarInner.style.set(key, val)
 			}
 			
 			sidebar.style.classes.each {
@@ -232,7 +237,7 @@ using graphics::Point
 			inner	:= (Str:Obj?) style["inner"]
 			obj		:= inner["left"]
 			val		:= obj is Num ? "${obj}px" : obj.toStr
-			this.sidebarInner.style->left = val
+			this.sidebarInner.style.set("left", val)
 		}
 
 		this.affixedType = affixType
@@ -385,7 +390,7 @@ using graphics::Point
 
 	** Switches between functions stack for each event type, if there's no
 	** event, it will re-initialize sticky sidebar.
-	private Void updateSticky(Event? event) {
+	private Void _handleEvent(Event? event) {
 		if (this._running) return
 		this._running = true
 
@@ -398,7 +403,7 @@ using graphics::Point
 				case "scroll":
 					this._calcDimensionsWithScroll()
 					this._observeScrollDir()
-					this.stickyPosition(false)
+					this.updateSticky(false)
 		
 				// When browser is resizing or there's no event, observe width
 				// breakpoint and re-calculate dimensions.
@@ -406,7 +411,7 @@ using graphics::Point
 				default:
 					this._widthBreakpoint()
 					this._calcDimensions()
-					this.stickyPosition(true)
+					this.updateSticky(true)
 			}
 			this._running = false
 		}
@@ -425,32 +430,28 @@ using graphics::Point
 			this.direction = "down" == this.direction ?  "up" : "down"
 	}
 
-//	** Destroy sticky sidebar plugin.
-//	Void destroy(){
-//		window.removeEventListener("resize", this, {capture: false})
-//		window.removeEventListener("scroll", this, {capture: false})
-//
-//		this.sidebar.classList.remove(this.options.stickyClass)
-//		this.sidebar.style.minHeight = ""
-//
-//		this.sidebar.removeEventListener("update" + EVENT_KEY, this)
-//
-//		styleReset := {inner: {}, outer: {}}
-//
-//		styleReset.inner = {position: "", top: "", left: "", bottom: "", width: "",  transform: ""}
-//		styleReset.outer = {height: "", position: ""}
-//
-//		for( let key in styleReset.outer )
-//			this.sidebar.style[key] = styleReset.outer[key]
-//
-//		for( let key in styleReset.inner )
-//			this.sidebarInner.style[key] = styleReset.inner[key]
-//
-//		if (this.options.resizeSensor && "undefined" != typeof ResizeSensor) {
-//			ResizeSensor.detach(this.sidebarInner, this.handleEvent)
-//			ResizeSensor.detach(this.container, this.handleEvent)
-//		}
-//	}
+	** Destroy sticky sidebar plugin.
+	Void destroy(){
+		Win.cur.removeEvent("scroll", false, _eventFn)
+		Win.cur.removeEvent("resize", false, _eventFn)
+		this._sensors?.each { it.detach }
+
+		this.sidebar.style.removeClass(this.options["stickyClass"])
+		this.sidebar.style->minHeight = ""
+
+		"position height".split.each {
+			this.sidebar.style.set(it, "")
+		}
+
+		"position top left bottom width transform".split.each {
+			this.sidebarInner.style.set(it, "")
+		}
+
+		sidebar.style.classes.each {
+			if (it.startsWith("stickySidebar_"))
+				sidebar.style.removeClass(it)
+		}
+	}
 
 	private native static Size windowInnerSize()
 
@@ -459,8 +460,6 @@ using graphics::Point
 	private native static Point offsetPoint(Elem elem)
 
 	private native static Point docScrollPoint()
-
-	private native static Void resizeSensor(Elem elem, |This| fn)
 }
 
 @Js internal class StickySidebarDims {

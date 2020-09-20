@@ -42,9 +42,3 @@ fan.afStickySidebar.StickySidebarPeer.docScrollPoint = function() {
 	var left = document.documentElement.scrollLeft || document.body.scrollLeft;
 	return fan.graphics.Point.makeInt(left, top);
 }
-
-fan.afStickySidebar.StickySidebarPeer.resizeSensor = function(fanElem, fn) {
-	new ResizeSensor(fanElem.peer.elem, function() {
-		fn.call(self);
-	});
-}
