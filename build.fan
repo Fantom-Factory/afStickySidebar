@@ -5,7 +5,7 @@ class Build : BuildPod {
 	new make() {
 		podName = "afStickySidebar"
 		summary = "For when CSS position sticky just isn't enough"
-		version = Version("0.0.1")
+		version = Version("0.0.2")
 
 		meta = [
 			"pod.dis"		: "Sticky Sidebar",
@@ -25,5 +25,6 @@ class Build : BuildPod {
 		srcDirs = [`fan/`]
 		resDirs = [`doc/`]
 		jsDirs	= [`js/`]
+		javaDirs= [`java/`]
 	}
 }
