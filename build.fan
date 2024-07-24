@@ -1,4 +1,5 @@
 using build::BuildPod
+using compiler::CompilerInput
 
 class Build : BuildPod {
 
@@ -8,9 +9,11 @@ class Build : BuildPod {
 		version = Version("0.0.2")
 
 		meta = [
-			"pod.dis"		: "Sticky Sidebar",
-			"repo.tags"		: "web",
-			"repo.public"	: "true"
+			"pod.dis"				: "Sticky Sidebar",
+			"repo.tags"				: "web",
+			"repo.public"			: "true",
+
+			"f4.jsReflectClosures"	: "true",
 		]
 
 		depends = [
@@ -26,5 +29,9 @@ class Build : BuildPod {
 		resDirs = [`doc/`]
 		jsDirs	= [`js/`]
 		javaDirs= [`java/`]
+	}
+	
+	override Void onCompileFan(CompilerInput ci) {
+		ci.jsReflectClosures			= true
 	}
 }
